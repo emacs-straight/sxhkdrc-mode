@@ -6,7 +6,7 @@
 ;; Maintainer: Protesilaos Stavrou General Issues <~protesilaos/general-issues@lists.sr.ht>
 ;; URL: https://git.sr.ht/~protesilaos/sxhkdrc-mode
 ;; Mailing-List: https://lists.sr.ht/~protesilaos/general-issues
-;; Version: 0.1.5
+;; Version: 1.0.0
 ;; Package-Requires: ((emacs "27.1"))
 
 ;; This file is NOT part of GNU Emacs.
@@ -51,8 +51,11 @@ Space Partitioning Window Manager (BSPWM)."
   '((key-modifier . ( "control" "ctrl" "shift" "alt" "meta" "super" "hyper"
                       "mod1" "mod2" "mod3" "mod4" "mod5"))
     (key-generic . "^\\({.*?}\\|\\<.*?\\>\\)")
+    (key-line . "^\\({.*?}\\|\\<.*?\\>\\).*$")
+    (outline . "^###+ ")
     (comment . "^\\([\s\t]+\\)?#.*$")
     (command . "^[\s\t]+\\([;]\\)?\\(\\_<.*?\\_>\\)")
+    (command-line . "^[\s\t]+\\([;]\\)?\\(\\_<.*?\\_>\\).*$")
     (indent-other . 0)
     (indent-command . 4))
   "List of associations for sxhkdrc syntax.")
@@ -111,7 +114,7 @@ key chord chain (demarcated by a colon or semicolon)."
     ;; `electric-indent-mode' that does RET+TAB in one go.
     (save-excursion
       (goto-char (line-beginning-position))
-      (skip-syntax-forward "[\t\s]" (line-end-position))
+      (skip-chars-forward "\t " (line-end-position))
       (cond
        ;; If the command continues to a new line by virtue of a
        ;; trailing \ then we indent accordingly.
@@ -144,15 +147,19 @@ key chord chain (demarcated by a colon or semicolon)."
           (indent-to indent))
       'no-indent)))
 
+(defvar sxhkdrc-mode-map (make-sparse-keymap)
+  "Local keymap for `sxhkdrc-mode' buffers.")
+
 ;;;###autoload
-(define-derived-mode sxhkdrc-mode prog-mode "SXHKDRC"
+(define-derived-mode sxhkdrc-mode fundamental-mode "SXHKDRC"
   "Major mode for editing sxhkdrc files (Simple X Hot Key Daemon)."
-  ;; FIXME 2023-02-06: Why is `prog-fill-reindent-defun' not filling
-  ;; comments?
   (setq-local indent-line-function 'sxhkdrc-mode-indent-line
-              comment-start "# "
-              comment-start-skip "#+[\t\s]*")
-  (setq font-lock-defaults '(sxhkdrc-mode-font-lock-keywords)))
+              comment-start "#"
+              comment-start-skip (concat (regexp-quote comment-start) "+\\s *")
+              outline-regexp (alist-get 'outline sxhkdrc-mode-syntax)
+              imenu-generic-expression `(("Command" ,(alist-get 'command-line sxhkdrc-mode-syntax) 0)
+                                         ("Key" ,(alist-get 'key-line sxhkdrc-mode-syntax) 0))
+              font-lock-defaults '(sxhkdrc-mode-font-lock-keywords)))
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("sxhkdrc\\'" . sxhkdrc-mode))
