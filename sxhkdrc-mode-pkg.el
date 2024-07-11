@@ -1,0 +1,2 @@
+;; Generated package description from sxhkdrc-mode.el  -*- no-byte-compile: t -*-
+(define-package "sxhkdrc-mode" "1.0.0.0.20240117.30132" "Major mode for sxhkdrc files (Simple X Hot Key Daemon)" '((emacs "27.1")) :commit "c95f9acbc21d2ae6b2967f2c7a0db882284b8aaf" :authors '(("Protesilaos Stavrou" . "info@protesilaos.com")) :maintainer '("Protesilaos Stavrou" . "info@protesilaos.com") :url "https://github.com/protesilaos/sxhkdrc-mode")
