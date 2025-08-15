@@ -38,6 +38,7 @@ Putting it all together:
 ```elisp
 (use-package sxhkdrc-mode
   :ensure t
-  :mode "sxhkdrc.*"
+  :mode "sxhkdrc.*" ; if you want more than just "sxhkdrc"
+  :commands (sxhkdrc-mode-restart)
   :hook (sxhkdrc-mode . sxhkdrc-mode-auto-restart))
 ```
