@@ -1,2 +1,2 @@
-;; Generated package description from sxhkdrc-mode.el  -*- no-byte-compile: t -*-
-(define-package "sxhkdrc-mode" "1.2.0.0.20260111.105425" "Major mode for sxhkdrc files (Simple X Hot Key Daemon)" '((emacs "27.1")) :commit "8d571ee02967622afe3bfdd86e433402279f395d" :authors '(("Protesilaos Stavrou" . "info@protesilaos.com")) :maintainer '("Protesilaos Stavrou" . "info@protesilaos.com") :url "https://github.com/protesilaos/sxhkdrc-mode")
+;; Generated package description from sxhkdrc-mode.el  -*- no-byte-compile: t; lexical-binding:t -*-
+(define-package "sxhkdrc-mode" "1.2.0.0.20260424.102746" "Major mode for sxhkdrc files (Simple X Hot Key Daemon)" '((emacs "27.1")) :commit "978d29405806e826178121c85c958f796ffc2af6" :authors '(("Protesilaos" . "info@protesilaos.com")) :maintainer '("Protesilaos" . "info@protesilaos.com") :url "https://github.com/protesilaos/sxhkdrc-mode")
