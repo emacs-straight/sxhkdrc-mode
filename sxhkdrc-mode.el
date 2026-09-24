@@ -25,12 +25,18 @@
 
 ;;; Commentary:
 ;;
-;; Major mode for editing sxhkdrc files (Simple X Hot Key Daemon).  It
-;; defines basic fontification rules and supports indentation.
+;; The `sxhkdrc-mode' is a major mode for editing sxhkdrc files
+;; (Simple X Hot Key Daemon).  It defines fontification rules and
+;; supports indentation.
+;;
+;; The buffer-local minor mode `sxhkdrc-mode-auto-restart' can be
+;; enabled in files that use the `sxhkdrc-mode' to automatically
+;; restart SXHKD after saving the file, thus activating the new
+;; hotkeys.
 ;;
 ;; SXHKD is the Simple X Hot Key Daemon which is commonly used in
 ;; minimalist desktop sessions on Xorg, such as with the Binary Space
-;; Partitioning Window Manager (BSPWM).
+;; Partitioning Window Manager (BSPWM) or HerbstluftWM.
 ;;
 ;; Why call the package SXHKDRC-something?  One school of thought is
 ;; that it is named after the files it applies to.  The heterodox
@@ -45,18 +51,21 @@
   "Major mode for editing sxhkdrc files.
 SXHKD is the Simple X Hotkey Daemon which is commonly used in
 minimalist desktop sessions on Xorg, such as with the Binary
-Space Partitioning Window Manager (BSPWM)."
+Space Partitioning Window Manager (BSPWM) or HerbstluftWM."
   :group 'programming)
 
 (defvar sxhkdrc-mode-syntax
-  '((key-modifier . ( "control" "ctrl" "shift" "alt" "meta" "super" "hyper"
-                      "mod1" "mod2" "mod3" "mod4" "mod5"))
+  '((key-modifier . ( "super" "hyper" "meta" "alt" "control" "ctrl" "shift"
+                      "mode_switch" "lock" "mod1" "mod2" "mod3" "mod4" "mod5" "any"))
     (key-generic . "^\\({.*?}\\|\\<.*?\\>\\)")
     (key-line . "^\\({.*?}\\|\\<.*?\\>\\).*$")
+    (key-chain-one-off . " \\(;\\) ")
+    (key-chain-continuous . " \\(:\\) ")
     (outline . "\\(####* [^\s\t\n]\\|{.*?}\\|\\<.*?\\>\\)")
     (comment . "^\\([\s\t]+\\)?#.*$")
-    (command . "^[\s\t]+\\([;]\\)?\\(\\_<.*?\\_>\\)")
-    (command-line . "^[\s\t]+\\([;]\\)?\\(\\_<.*?\\_>\\).*$")
+    (command . "^[\s\t]+\\([;@~]\\)?\\(\\_<.*?\\_>\\)")
+    (command-line . "^[\s\t]+\\([;@~]\\)?\\(\\_<.*?\\_>\\).*$")
+    (continuation-line . "\\\\$")
     (indent-other . 0)
     (indent-command . 4))
   "List of associations for sxhkdrc syntax.")
@@ -72,26 +81,44 @@ Space Partitioning Window Manager (BSPWM)."
 PLACEMENT controls how to format the regexp: `start' is for the
 beginning of the line, `chord' is when the modifier is part of a
 key chord chain (demarcated by a colon or semicolon)."
-  (let ((mods (alist-get 'key-modifier sxhkdrc-mode-syntax)))
-    (pcase placement
-      ('start (format "^\\(%s\\)" (mapconcat #'identity mods "\\|")))
-      ('chord (format "[;:]\\([\s\t]\\)?\\(%s\\)" (mapconcat #'identity mods "\\|"))))))
+  (if-let* ((mods (alist-get 'key-modifier sxhkdrc-mode-syntax)))
+      (pcase placement
+        ('start (format "^\\(%s\\)" (mapconcat #'identity mods "\\|")))
+        ('chord (format "[;:]\\([\s\t]\\)?\\(%s\\)" (mapconcat #'identity mods "\\|"))))
+    (error "Cannot find modifiers in `sxhkdrc-mode-syntax'")))
 
 (defface sxhkdrc-mode-primary-modifier
   '((t :inherit font-lock-keyword-face))
-  "Face for sxhkd modifiers at the start of a key sequence or chord.")
+  "Face for modifiers at the start of a key sequence or chord.")
 
 (defface sxhkdrc-mode-generic-key
   '((t :inherit font-lock-builtin-face))
-  "Face for sxhkd generic keys at the start of a sequence.")
+  "Face for generic keys at the start of a sequence.")
 
 (defface sxhkdrc-mode-command
   '((t :inherit font-lock-function-name-face))
-  "Face for the first part of an sxhkd command.")
+  "Face for the first part of a command.")
 
-(defface sxhkdrc-mode-command-async
-  '((t :inherit bold))
-  "Face for the sxhkd asynchronous command indicator.")
+(define-obsolete-face-alias
+ 'sxhkdrc-mode-command-async
+ 'sxhkdrc-mode-command-prefix
+ "1.3.0")
+
+(defface sxhkdrc-mode-command-prefix
+  '((t :inherit font-lock-type-face))
+  "Face for the command prefix indicator: [;@~].")
+
+(defface sxhkdrc-mode-continuation-line
+  '((t :inherit font-lock-constant-face))
+  "Face for continuation lines in commands (backslash at the end of line).")
+
+(defface sxhkdrc-mode-chain-one-off-separator
+  '((t :inherit success))
+  "Face for the key chord chain one-off separator.")
+
+(defface sxhkdrc-mode-chain-continuous-separator
+  '((t :inherit warning))
+  "Face for the key chord chain continuous separator.")
 
 (defconst sxhkdrc-mode-font-lock-keywords
   (let ((syntax sxhkdrc-mode-syntax))
@@ -100,12 +127,18 @@ key chord chain (demarcated by a colon or semicolon)."
       (,(sxhkdrc-mode--modifiers-regexp 'chord)
        (2 'sxhkdrc-mode-primary-modifier))
       (,(alist-get 'command syntax)
-       (1 'sxhkdrc-mode-command-async t t)
+       (1 'sxhkdrc-mode-command-prefix t t)
        (2 'sxhkdrc-mode-command t t))
       (,(alist-get 'comment syntax)
        (0 'font-lock-comment-face t t))
       (,(alist-get 'key-generic syntax)
-       (0 'sxhkdrc-mode-generic-key))))
+       (0 'sxhkdrc-mode-generic-key))
+      (,(alist-get 'key-chain-one-off syntax)
+       (1 'sxhkdrc-mode-chain-one-off-separator t t))
+      (,(alist-get 'key-chain-continuous syntax)
+       (1 'sxhkdrc-mode-chain-continuous-separator t t))
+      (,(alist-get 'continuation-line syntax)
+       (0 'sxhkdrc-mode-continuation-line))))
   "Fontification of sxhkdrc files.")
 
 (defun sxhkdrc-mode-indent-line ()
@@ -116,7 +149,7 @@ key chord chain (demarcated by a colon or semicolon)."
          (key (alist-get 'key-generic syntax))
          (indent-other (alist-get 'indent-other syntax))
          (indent-command (alist-get 'indent-command syntax))
-         indent)
+         (indent nil))
     ;; The `or' statements here are needed because this will work with
     ;; `electric-indent-mode' that does RET+TAB in one go.
     (save-excursion
@@ -126,11 +159,12 @@ key chord chain (demarcated by a colon or semicolon)."
        ;; If the command continues to a new line by virtue of a
        ;; trailing \ then we indent accordingly.
        ((or (looking-at command)
-            (progn
-              (forward-line -1)
-              (beginning-of-line)
-              (or (re-search-forward ".*\\\\$" (line-end-position) t)
-                  (looking-at key))))
+            (and-let* ((continuation (alist-get 'continuation-line sxhkdrc-mode-syntax)))
+              (progn
+                (forward-line -1)
+                (beginning-of-line)
+                (or (re-search-forward continuation (line-end-position) t)
+                    (looking-at key)))))
         (setq indent indent-command))
        ;; If the previous line is a command that does not end with a
        ;; backslash, we want to reset indentation.
@@ -154,8 +188,12 @@ key chord chain (demarcated by a colon or semicolon)."
           (indent-to indent))
       'no-indent)))
 
+;; TODO 2026-09-23: Can `sxhkdrc-mode-restart-process' be done without
+;; `shell-command-to-string'?  I tried (process-id "sxhkd") but it
+;; throws an error.  It is not important, but I am commenting here to
+;; remember I tried this.
 (defun sxhkdrc-mode-restart-process ()
-  "Restart the sxhkd process."
+  "Restart the SXHKD process."
   (when-let* ((pid (shell-command-to-string "pidof sxhkd")))
     (call-process "kill" nil 0 nil "-USR1" (string-trim pid))
     t))
@@ -163,7 +201,7 @@ key chord chain (demarcated by a colon or semicolon)."
 (declare-function notifications-notify "notifications" (&rest params))
 
 (defun sxhkdrc-mode-restart-notify ()
-  "Notify that the sxhkd process has been restarted.
+  "Notify that the SXHKD process has been restarted.
 Read Info node `(elisp) Desktop Notifications' for details."
   (when (featurep 'dbusbind)
     (unless (fboundp 'notifications-notify)
@@ -177,17 +215,19 @@ Read Info node `(elisp) Desktop Notifications' for details."
      :sound-file nil)))
 
 (defun sxhkdrc-mode-restart ()
-  "Restart the sxhkd process."
+  "Restart the SXHKD process."
   (interactive)
   (when (sxhkdrc-mode-restart-process)
     (sxhkdrc-mode-restart-notify)))
 
 (define-minor-mode sxhkdrc-mode-auto-restart
-  "Automatically restart sxhkd after saving its file.
+  "Automatically restart SXHKD after saving its file.
 To set this minor mode up when opening a file that uses the
 `sxhkdrc-mode', use the hook `sxhkdrc-mode-hook'."
   :global nil
   :init-value nil
+  (unless (derived-mode-p 'sxhkdrc-mode)
+    (user-error "Can only use `sxhkdrc-mode-auto-restart' in `sxhkdrc-mode' files"))
   (if sxhkdrc-mode-auto-restart
       (add-hook 'after-save-hook #'sxhkdrc-mode-restart nil :local-only)
     (remove-hook 'after-save-hook #'sxhkdrc-mode-restart :local-only)))
@@ -211,7 +251,7 @@ To set this minor mode up when opening a file that uses the
 
 ;;;###autoload
 (define-derived-mode sxhkdrc-mode fundamental-mode "SXHKDRC"
-  "Major mode for editing sxhkdrc files (Simple X Hot Key Daemon)."
+  "Major mode for editing sxhkdrc files (Simple X Hot Key Daemon or SXHKD)."
   :syntax-table sxhkdrc-mode-syntax-table
   (setq-local indent-line-function 'sxhkdrc-mode-indent-line
               comment-start "#"
