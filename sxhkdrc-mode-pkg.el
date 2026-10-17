@@ -1,2 +1,2 @@
 ;; Generated package description from sxhkdrc-mode.el  -*- no-byte-compile: t; lexical-binding:t -*-
-(define-package "sxhkdrc-mode" "1.2.0.0.20260923.19" "Major mode for sxhkdrc files (Simple X Hot Key Daemon)" '((emacs "27.1")) :commit "5be7052de4acb30f9337e0a46ead1dc023e792f6" :authors '(("Protesilaos" . "info@protesilaos.com")) :maintainer '("Protesilaos" . "info@protesilaos.com") :url "https://github.com/protesilaos/sxhkdrc-mode")
+(define-package "sxhkdrc-mode" "1.2.0.0.20261016.20" "Major mode for sxhkdrc files (Simple X Hot Key Daemon)" '((emacs "27.1")) :commit "74d26669c02d332a643cc03b51af841b8a2b1589" :authors '(("Protesilaos" . "info@protesilaos.com")) :maintainer '("Protesilaos" . "info@protesilaos.com") :url "https://github.com/protesilaos/sxhkdrc-mode")
